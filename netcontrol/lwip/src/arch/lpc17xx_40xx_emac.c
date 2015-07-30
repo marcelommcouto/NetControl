@@ -29,6 +29,9 @@
  * this code.
  */
 
+#include "LPC17xx.h"
+#include "FreeRTOS.h"
+
 #include "lwip/opt.h"
 #include "lwip/sys.h"
 #include "lwip/def.h"

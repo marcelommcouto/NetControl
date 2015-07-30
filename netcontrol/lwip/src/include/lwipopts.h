@@ -29,8 +29,8 @@
  * Author: Simon Goldschmidt
  *
  */
-#ifndef __LWIPOPTS_H__
-#define __LWIPOPTS_H__
+#ifndef _LWIPOPTS_H_
+#define _LWIPOPTS_H_
 
 /* Select NO_SYS based on OS or Non OS configuration */
 #define NO_SYS                          0
@@ -38,7 +38,8 @@
 /* Raw interface not needed */
 #define LWIP_RAW                        0
 
-//#define LWIP_DEBUG			1
+#define LWIP_NOASSERT
+//#define LWIP_DEBUG				0
 #define LPC_TX_PBUF_BOUNCE_EN	1
 //#define HTTPD_DEBUG         LWIP_DBG_ON
 

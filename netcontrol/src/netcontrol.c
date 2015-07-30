@@ -31,6 +31,9 @@ int main(void)
 	/* Inicializa o Clock */
 	SystemCoreClockUpdate();
 
+	/* create task to ethernet */
+	xTaskCreate(ethernettask, "ethernet", (configMINIMAL_STACK_SIZE * 2), NULL, (tskIDLE_PRIORITY + 1), NULL);
+
 	/* create task to blink led */
 	xTaskCreate(blinktask, "blink", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 1), NULL);
 
