@@ -33,6 +33,8 @@
 #include "task.h"
 #include "lwip/api.h"
 #include "lwip/tcpip.h"
+#include "lwip/dhcp.h"
+
 #include "arch/lpc17xx_40xx_emac.h"
 #include "arch/lpc_phy_smsc87x0.h"
 #include "arch/enet_17xx_40xx.h"
@@ -83,9 +85,9 @@ void blinktask(void *pvParameters)
 
 	while(1)
 	{
-		LPC_GPIO0->FIOSET = (1<<4);
+		LPC_GPIO0->FIOSET |= (1<<4);
 		vTaskDelay(500/portTICK_RATE_MS);
-		LPC_GPIO0->FIOCLR = (1<<4);
+		LPC_GPIO0->FIOCLR |= (1<<4);
 		vTaskDelay(500/portTICK_RATE_MS);
 	}
 }
@@ -96,6 +98,7 @@ void ethernettask(void *pvParameters)
 	uint32_t physts;
 	struct ip_addr ipaddr, netmask, gw;
 	uint8_t prt_ip = 0;
+	bool dhcpstarted = false;
 
 	/* Inicializando Pilha TCP/IP. */
 	tcpip_init(NULL, NULL);
@@ -115,7 +118,10 @@ void ethernettask(void *pvParameters)
 	NVIC_SetPriority(ENET_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY + 1);
 	NVIC_EnableIRQ(ENET_IRQn);
 
-	dhcp_start(&lpc17xx_netif);
+	if(dhcp_start(&lpc17xx_netif))
+	{
+		dhcpstarted = true;
+	}
 
 	/* This loop monitors the PHY link and will handle cable events via the PHY driver. */
 	while (1)
@@ -150,11 +156,36 @@ void ethernettask(void *pvParameters)
 					Chip_ENET_SetHalfDuplex(LPC_EMAC);
 				}
 				tcpip_callback_with_block((tcpip_callback_fn) netif_set_link_up, (void *) &lpc17xx_netif, 1);
+				//
+				if(dhcpstarted == false)
+				{
+					if(dhcp_start(&lpc17xx_netif) == ERR_OK)	/* Iniciando o serviço DHCP. */
+					{
+						dhcpstarted = true;
+					}
+				}
 				printf("\nCabo colocado.");
 			}
 			else
 			{
+				TaskHandle_t handle;
+
 				tcpip_callback_with_block((tcpip_callback_fn) netif_set_link_down, (void *) &lpc17xx_netif, 1);
+
+				if(dhcpstarted == true)
+				{
+					dhcp_release(&lpc17xx_netif);		/** release the DHCP lease, usually called before dhcp_stop()*/
+					dhcp_stop(&lpc17xx_netif);			/** stop DHCP configuration */
+					dhcpstarted = false;
+				}
+
+				handle = dumbGetHandle();
+				if(handle != NULL)
+				{
+					dumbGetHandle(NULL);
+					vTaskDelete(handle);
+				}
+
 				printf("\nCabo retirado.");
 			}
 			vTaskDelay(configTICK_RATE_HZ / 2);		/* Delay for link detection (500mS) */
@@ -167,10 +198,19 @@ void ethernettask(void *pvParameters)
 			{
 				static char tmp_buff[16];
 				prt_ip = 1;
+				TaskHandle_t handle;
 
 				printf("\nIP_ADDR 	: %s", ipaddr_ntoa_r((const ip_addr_t *) &lpc17xx_netif.ip_addr, tmp_buff, 16));
 				printf("\nNET_MASK  : %s", ipaddr_ntoa_r((const ip_addr_t *) &lpc17xx_netif.netmask, tmp_buff, 16));
 				printf("\nGATEWAY_IP: %s", ipaddr_ntoa_r((const ip_addr_t *) &lpc17xx_netif.gw, tmp_buff, 16));
+
+				handle = dumbGetHandle();			/* Creating a Syslog Client Task. */
+				if(handle != NULL)
+				{
+					dumbSetHandle(NULL);
+					vTaskDelete(handle);
+				}
+				dumbSetHandle(dumbInit());
 			}
 		}
 	}

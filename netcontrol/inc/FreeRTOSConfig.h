@@ -63,8 +63,8 @@
     1 tab == 4 spaces!
 */
 
-#ifndef FREERTOS_CONFIG_H
-#define FREERTOS_CONFIG_H
+#ifndef _FREERTOSCONFIG_H_
+#define _FREERTOSCONFIG_H_
 
 #include "LPC17xx.h"
 
